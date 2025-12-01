@@ -1,10 +1,6 @@
 """GUI tool to download and organize STRM playlists."""
-# pylint: disable=missing-function-docstring,line-too-long,too-many-instance-attributes,
-# pylint: disable=trailing-whitespace,wrong-import-order,multiple-statements,
-# pylint: disable=inconsistent-return-statements,too-many-locals,too-many-arguments,
-# pylint: disable=too-many-positional-arguments,dangerous-default-value,unused-argument,
-# pylint: disable=unused-variable,broad-exception-caught,bare-except,superfluous-parens,
-# pylint: disable=unspecified-encoding
+# pylint: disable=too-many-instance-attributes, too-many-locals, too-many-arguments
+# pylint: disable=broad-exception-caught, line-too-long, unspecified-encoding
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import re
@@ -28,12 +24,86 @@ DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
+# --- VERTAALSYSTEEM ---
+LANGUAGES = {
+    'nl': {
+        'app_title': "STRM Bibliotheek Manager - Compleet & Fixed",
+        'settings_frame': "Xtream Codes & Instellingen",
+        'provider_label': "Provider:",
+        'manage_accounts_button': "Beheer Accounts",
+        'tmdb_api_key_label': "TMDB API Key:",
+        'load_list_button': "Lijst Laden (Xtream Codes)",
+        'live_tv_frame': "1. Live TV",
+        'movies_frame': "2. Films (VOD)",
+        'series_frame': "3. Series",
+        'export_m3u_button': "Exporteer M3U",
+        'create_movies_button': "Maak Films",
+        'create_series_button': "Maak Series",
+        'clear_selection_button': "Wis Selectie",
+        'status_frame': "Status & Log",
+        'ready_status': "Klaar voor gebruik.",
+        'language_label': "Taal:",
+        'connecting_status': "Verbinden met provider...",
+        'getting_live_tv_status': "Live TV ophalen...",
+        'getting_movies_status': "Films ophalen...",
+        'getting_series_status': "Series ophalen...",
+        'done_status': "Klaar! Live: {live} | Films: {movies} | Series: {series}",
+        'no_provider_warning': "Geen provider geselecteerd! Kies er een of voeg toe via 'Beheer'.",
+        'no_live_groups_warning': "Geen Live groepen geselecteerd.",
+        'no_movie_groups_warning': "Geen Film groepen geselecteerd.",
+        'no_series_groups_warning': "Geen Serie groepen geselecteerd.",
+        'export_live_status': "Bezig met Live TV M3U genereren...",
+        'export_live_done': "Klaar! {count} kanalen in M3U gezet.",
+        'export_movies_status': "Films worden verwerkt...",
+        'export_movies_done': "Klaar! {count} films verwerkt.",
+        'export_series_status': "Starten met verwerken van {total} series... (Dit kan even duren)",
+        'export_series_progress': "Serie {current}/{total}: {name}",
+        'export_series_done': "Klaar! {episodes} afleveringen verwerkt van {series} series.",
+        'ask_movie_dir_title': "Waar moeten de Films opgeslagen worden?",
+        'ask_series_dir_title': "Waar moeten de Series opgeslagen worden?",
+    },
+    'en': {
+        'app_title': "STRM Library Manager - Complete & Fixed",
+        'settings_frame': "Xtream Codes & Settings",
+        'provider_label': "Provider:",
+        'manage_accounts_button': "Manage Accounts",
+        'tmdb_api_key_label': "TMDB API Key:",
+        'load_list_button': "Load List (Xtream Codes)",
+        'live_tv_frame': "1. Live TV",
+        'movies_frame': "2. Movies (VOD)",
+        'series_frame': "3. Series",
+        'export_m3u_button': "Export M3U",
+        'create_movies_button': "Create Movies",
+        'create_series_button': "Create Series",
+        'clear_selection_button': "Clear Selection",
+        'status_frame': "Status & Log",
+        'ready_status': "Ready to use.",
+        'language_label': "Language:",
+        'connecting_status': "Connecting to provider...",
+        'getting_live_tv_status': "Fetching Live TV...",
+        'getting_movies_status': "Fetching Movies...",
+        'getting_series_status': "Fetching Series...",
+        'done_status': "Done! Live: {live} | Movies: {movies} | Series: {series}",
+        'no_provider_warning': "No provider selected! Please select one or add one via 'Manage'.",
+        'no_live_groups_warning': "No Live TV groups selected.",
+        'no_movie_groups_warning': "No Movie groups selected.",
+        'no_series_groups_warning': "No Series groups selected.",
+        'export_live_status': "Generating Live TV M3U...",
+        'export_live_done': "Done! {count} channels added to M3U.",
+        'export_movies_status': "Processing movies...",
+        'export_movies_done': "Done! {count} movies processed.",
+        'export_series_status': "Starting to process {total} series... (This may take a while)",
+        'export_series_progress': "Series {current}/{total}: {name}",
+        'export_series_done': "Done! {episodes} episodes processed from {series} series.",
+        'ask_movie_dir_title': "Where should the Movies be saved?",
+        'ask_series_dir_title': "Where should the Series be saved?",
+    }
+}
 
 class StrmManagerApp:
     """De hoofdapplicatie voor het beheren van STRM-bestanden van Xtream Codes."""
     def __init__(self, root):
         self.root = root
-        self.root.title("STRM Bibliotheek Manager - Compleet & Fixed")
         self.root.geometry("1100x750")
         
         self.config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
@@ -60,6 +130,11 @@ class StrmManagerApp:
         self.providers = []
         self.current_provider_name = tk.StringVar()
         self.tmdb_api_key = tk.StringVar()
+        self.epg_url = None
+        
+        # Taalinstellingen
+        self.current_lang = 'nl' # Standaard
+        self.lang_var = tk.StringVar()
 
         self._setup_ui()
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -67,66 +142,76 @@ class StrmManagerApp:
 
     def _setup_ui(self):
         # --- Bovenbalk ---
-        frame_top = tk.LabelFrame(self.root, text="Xtream Codes & Instellingen", pady=5, padx=10)
-        frame_top.pack(fill=tk.X, padx=10, pady=5)
+        self.frame_top = tk.LabelFrame(self.root, pady=5, padx=10)
+        self.frame_top.pack(fill=tk.X, padx=10, pady=5)
+
+        # Taal selectie
+        frame_lang = tk.Frame(self.frame_top)
+        frame_lang.pack(fill=tk.X, expand=True, pady=2)
+        self.lbl_lang = tk.Label(frame_lang, width=12, anchor='w')
+        self.lbl_lang.pack(side=tk.LEFT)
+        self.lang_menu = ttk.Combobox(frame_lang, textvariable=self.lang_var, values=list(LANGUAGES.keys()), state="readonly")
+        self.lang_menu.pack(side=tk.LEFT, padx=5)
+        self.lang_var.trace_add('write', self.change_language)
 
         # Provider selectie
-        frame_inputs = tk.Frame(frame_top)
+        frame_inputs = tk.Frame(self.frame_top)
         frame_inputs.pack(fill=tk.X, expand=True, pady=2)
 
-        tk.Label(frame_inputs, text="Provider:", width=12, anchor='w').grid(row=0, column=0, sticky='w')
+        self.lbl_provider = tk.Label(frame_inputs, width=12, anchor='w')
+        self.lbl_provider.grid(row=0, column=0, sticky='w')
         self.combo_providers = ttk.Combobox(frame_inputs, textvariable=self.current_provider_name, state="readonly")
         self.combo_providers.grid(row=0, column=1, sticky='ew', padx=5)
         
-        btn_manage = tk.Button(frame_inputs, text="Beheer Accounts", command=self.open_provider_manager)
-        btn_manage.grid(row=0, column=2, padx=5)
+        self.btn_manage = tk.Button(frame_inputs, command=self.open_provider_manager)
+        self.btn_manage.grid(row=0, column=2, padx=5)
 
         frame_inputs.grid_columnconfigure(1, weight=1)
 
         # TMDB Key
-        frame_api = tk.Frame(frame_top)
+        frame_api = tk.Frame(self.frame_top)
         frame_api.pack(fill=tk.X, expand=True, pady=2)
-        tk.Label(frame_api, text="TMDB API Key:", width=12, anchor='w').pack(side=tk.LEFT)
+        self.lbl_tmdb = tk.Label(frame_api, width=12, anchor='w')
+        self.lbl_tmdb.pack(side=tk.LEFT)
         tk.Entry(frame_api, textvariable=self.tmdb_api_key).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
         
         # Load knop
-        self.btn_load = tk.Button(frame_top, text="Lijst Laden (Xtream Codes)", command=self.start_load_from_xtream, bg="#dddddd", height=2)
+        self.btn_load = tk.Button(self.frame_top, command=self.start_load_from_xtream, bg="#dddddd", height=2)
         self.btn_load.pack(fill=tk.X, pady=(10, 0))
 
         # --- Midden: 3 Kolommen ---
         frame_middle = tk.Frame(self.root)
         frame_middle.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         
-        # Kolommen evenredig verdelen
         frame_middle.grid_columnconfigure(0, weight=1)
         frame_middle.grid_columnconfigure(1, weight=1)
         frame_middle.grid_columnconfigure(2, weight=1)
         frame_middle.grid_rowconfigure(0, weight=1)
 
         # 1. LIVE
-        self.frame_live, self.canvas_live = self._create_category_frame(frame_middle, "1. Live TV", 0, "#e6f2ff")
-        self._add_action_buttons(self.frame_live, "Exporteer M3U", self.start_export_live, "live")
+        self.frame_live, self.canvas_live = self._create_category_frame(frame_middle, 0, "#e6f2ff")
+        self.btn_export_live, self.btn_clear_live = self._add_action_buttons(self.frame_live, self.start_export_live, "live")
 
         # 2. FILMS
-        self.frame_movies, self.canvas_movies = self._create_category_frame(frame_middle, "2. Films (VOD)", 1, "#e6ffe6")
-        self._add_action_buttons(self.frame_movies, "Maak Films", self.start_export_movies, "movies")
+        self.frame_movies, self.canvas_movies = self._create_category_frame(frame_middle, 1, "#e6ffe6")
+        self.btn_export_movies, self.btn_clear_movies = self._add_action_buttons(self.frame_movies, self.start_export_movies, "movies")
 
         # 3. SERIES
-        self.frame_series, self.canvas_series = self._create_category_frame(frame_middle, "3. Series", 2, "#fff0e6")
-        self._add_action_buttons(self.frame_series, "Maak Series", self.start_export_series, "series")
+        self.frame_series, self.canvas_series = self._create_category_frame(frame_middle, 2, "#fff0e6")
+        self.btn_export_series, self.btn_clear_series = self._add_action_buttons(self.frame_series, self.start_export_series, "series")
 
         # --- Onderbalk ---
-        frame_bottom = tk.LabelFrame(self.root, text="Status & Log", padx=10, pady=5)
-        frame_bottom.pack(fill=tk.X, padx=10, pady=10)
+        self.frame_bottom = tk.LabelFrame(self.root, padx=10, pady=5)
+        self.frame_bottom.pack(fill=tk.X, padx=10, pady=10)
 
-        self.lbl_status = tk.Label(frame_bottom, text="Klaar voor gebruik.", fg="blue", anchor="w")
+        self.lbl_status = tk.Label(self.frame_bottom, fg="blue", anchor="w")
         self.lbl_status.pack(side=tk.LEFT, fill=tk.X, expand=True)
         
-        self.progress = ttk.Progressbar(frame_bottom, mode="indeterminate", length=200)
+        self.progress = ttk.Progressbar(self.frame_bottom, mode="indeterminate", length=200)
         self.progress.pack(side=tk.RIGHT, padx=10)
 
-    def _create_category_frame(self, parent, title, col, bg_color):
-        container = tk.LabelFrame(parent, text=title, padx=5, pady=5, bg=bg_color)
+    def _create_category_frame(self, parent, col, bg_color):
+        container = tk.LabelFrame(parent, padx=5, pady=5, bg=bg_color)
         container.grid(row=0, column=col, sticky='nsew', padx=5)
         
         list_frame = tk.Frame(container)
@@ -145,12 +230,45 @@ class StrmManagerApp:
 
         return container, scrollable_frame
 
-    def _add_action_buttons(self, parent, export_text, export_cmd, type_key):
+    def _add_action_buttons(self, parent, export_cmd, type_key):
         btn_frame = tk.Frame(parent)
         btn_frame.pack(fill=tk.X, pady=5)
         
-        tk.Button(btn_frame, text=export_text, command=export_cmd, font=("Arial", 9, "bold")).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=2)
-        tk.Button(btn_frame, text="Wis Selectie", command=lambda: self.clear_selection(type_key), font=("Arial", 8)).pack(side=tk.LEFT, padx=2)
+        btn_export = tk.Button(btn_frame, command=export_cmd, font=("Arial", 9, "bold"))
+        btn_export.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=2)
+        btn_clear = tk.Button(btn_frame, command=lambda: self.clear_selection(type_key), font=("Arial", 8))
+        btn_clear.pack(side=tk.LEFT, padx=2)
+        return btn_export, btn_clear
+
+    def _(self, key, **kwargs):
+        """Vertaalt een key naar de huidige taal, met optionele placeholders."""
+        return LANGUAGES.get(self.current_lang, LANGUAGES['en']).get(key, key).format(**kwargs)
+
+    def change_language(self, *args):
+        new_lang = self.lang_var.get()
+        if new_lang != self.current_lang:
+            self.current_lang = new_lang
+            self.update_ui_text()
+
+    def update_ui_text(self):
+        """Werkt alle teksten in de UI bij naar de huidige taal."""
+        self.root.title(self._('app_title'))
+        self.frame_top.config(text=self._('settings_frame'))
+        self.lbl_lang.config(text=self._('language_label'))
+        self.lbl_provider.config(text=self._('provider_label'))
+        self.btn_manage.config(text=self._('manage_accounts_button'))
+        self.lbl_tmdb.config(text=self._('tmdb_api_key_label'))
+        self.btn_load.config(text=self._('load_list_button'))
+        self.frame_live.config(text=self._('live_tv_frame'))
+        self.frame_movies.config(text=self._('movies_frame'))
+        self.frame_series.config(text=self._('series_frame'))
+        self.btn_export_live.config(text=self._('export_m3u_button'))
+        self.btn_export_movies.config(text=self._('create_movies_button'))
+        self.btn_export_series.config(text=self._('create_series_button'))
+        for btn in [self.btn_clear_live, self.btn_clear_movies, self.btn_clear_series]:
+            btn.config(text=self._('clear_selection_button'))
+        self.frame_bottom.config(text=self._('status_frame'))
+        self.lbl_status.config(text=self._('ready_status'))
 
     # --- HULP FUNCTIES ---
     def log(self, message):
@@ -172,7 +290,7 @@ class StrmManagerApp:
             except Exception as e:
                 self.log(f"Onverwachte Fout: {e}")
                 # Print volledige error naar console voor debugging
-                traceback.print_exc()
+                traceback.print_exc() # Keep for debugging
                 messagebox.showerror("Fout in achtergrondtaak", f"Er is een fout opgetreden:\n\n{e}")
             finally:
                 self.root.after(0, lambda: self.set_busy(False))
@@ -206,12 +324,17 @@ class StrmManagerApp:
             self.selected_series = set(data.get("selected_series", []))
             self.providers = data.get("providers", [])
             self.tmdb_api_key.set(data.get("tmdb_api_key", ""))
+            self.current_lang = data.get("language", "nl")
+            self.lang_var.set(self.current_lang)
             
             self.combo_providers['values'] = [p['name'] for p in self.providers]
             if data.get("last_provider"):
                 self.current_provider_name.set(data.get("last_provider"))
+            
+            self.update_ui_text() # Pas taal toe na laden
         except (json.JSONDecodeError, OSError):
-            self.log("Fout bij laden config.json.")
+            self.lang_var.set(self.current_lang) # Zorg dat de UI consistent is
+            self.update_ui_text()
 
     def save_config(self):
         self._sync_vars_to_sets()
@@ -221,7 +344,8 @@ class StrmManagerApp:
             "selected_series": list(self.selected_series),
             "providers": self.providers,
             "last_provider": self.current_provider_name.get(),
-            "tmdb_api_key": self.tmdb_api_key.get()
+            "tmdb_api_key": self.tmdb_api_key.get(),
+            "language": self.current_lang
         }
         try:
             with open(self.config_path, "w") as f:
@@ -250,20 +374,22 @@ class StrmManagerApp:
         provider = next((p for p in self.providers if p['name'] == name), None)
         
         if not provider:
-            self.log("Geen provider geselecteerd! Kies er een of voeg toe via 'Beheer'.")
+            self.log(self._('no_provider_warning'))
             return
 
         server = provider['server'].rstrip('/')
         username = provider['username']
         password = self._decrypt_pass(provider.get('password', ''))
         
-        base_url = f"{server}/player_api.php"
+        base_url = f"{server}/player_api.php" # Let op: auth wordt hieronder toegevoegd
+        self.epg_url = f"{server}/xmltv.php?username={username}&password={password}"
         auth = {"username": username, "password": password}
 
         self.log("Verbinden met provider...")
 
         # 1. Categorieën ophalen
         live_cats = self._api_get(base_url, {**auth, "action": "get_live_categories"}) or []
+
         vod_cats = self._api_get(base_url, {**auth, "action": "get_vod_categories"}) or []
         series_cats = self._api_get(base_url, {**auth, "action": "get_series_categories"}) or []
 
@@ -272,7 +398,7 @@ class StrmManagerApp:
         map_series = {c['category_id']: c['category_name'] for c in series_cats}
 
         # 2. Data ophalen & opslaan
-        self.log("Live TV ophalen...")
+        self.log(self._('getting_live_tv_status'))
         self.streams_live = []
         raw_live = self._api_get(base_url, {**auth, "action": "get_live_streams"}) or []
         for s in raw_live:
@@ -281,10 +407,11 @@ class StrmManagerApp:
                 'name': s['name'],
                 'group': cat_name,
                 'url': f"{server}/live/{username}/{password}/{s['stream_id']}.ts",
-                'logo': s.get('stream_icon', '')
+                'logo': s.get('stream_icon', ''),
+                'epg_id': s.get('epg_channel_id', '')
             })
 
-        self.log("Films ophalen...")
+        self.log(self._('getting_movies_status'))
         self.streams_movies = []
         raw_vod = self._api_get(base_url, {**auth, "action": "get_vod_streams"}) or []
         for s in raw_vod:
@@ -296,7 +423,7 @@ class StrmManagerApp:
                 'url': f"{server}/movie/{username}/{password}/{s['stream_id']}.{ext}"
             })
 
-        self.log("Series ophalen...")
+        self.log(self._('getting_series_status'))
         self.streams_series = []
         raw_series = self._api_get(base_url, {**auth, "action": "get_series"}) or []
         for s in raw_series:
@@ -317,7 +444,11 @@ class StrmManagerApp:
         self._fill_canvas(self.canvas_movies, m_groups, self.movie_vars, self.selected_movies)
         self._fill_canvas(self.canvas_series, s_groups, self.series_vars, self.selected_series)
 
-        count_msg = f"Klaar! Live: {len(self.streams_live)} | Films: {len(self.streams_movies)} | Series: {len(self.streams_series)}"
+        count_msg = self._('done_status', 
+                           live=len(self.streams_live), 
+                           movies=len(self.streams_movies), 
+                           series=len(self.streams_series)
+                          )
         self.log(count_msg)
 
     def _fill_canvas(self, canvas, groups, var_dict, selected_set):
@@ -344,30 +475,31 @@ class StrmManagerApp:
     # --- EXPORT FUNCTIES ---
     def start_export_live(self):
         self._sync_vars_to_sets()
-        if not self.selected_live: return messagebox.showwarning("Let op", "Geen Live groepen geselecteerd.")
+        if not self.selected_live: return messagebox.showwarning("Let op", self._('no_live_groups_warning'))
         path = filedialog.asksaveasfilename(defaultextension=".m3u", filetypes=[("M3U Playlist", "*.m3u")])
         if path: self.run_in_thread(lambda: self.export_live_logic(path))
 
     def export_live_logic(self, filename):
-        self.log("Bezig met Live TV M3U genereren...")
+        self.log(self._('export_live_status'))
         count = 0
         with open(filename, 'w', encoding='utf-8') as f:
-            f.write("#EXTM3U\n")
+            f.write(f'#EXTM3U x-tvg-url="{self.epg_url}"\n')
             for s in self.streams_live:
                 if s['group'] in self.selected_live:
-                    f.write(f'#EXTINF:-1 tvg-name="{s["name"]}" tvg-logo="{s["logo"]}" group-title="{s["group"]}",{s["name"]}\n')
+                    epg_id = s.get('epg_id', '')
+                    f.write(f'#EXTINF:-1 tvg-id="{epg_id}" tvg-name="{s["name"]}" tvg-logo="{s["logo"]}" group-title="{s["group"]}",{s["name"]}\n')
                     f.write(f"{s['url']}\n")
                     count += 1
-        self.log(f"Klaar! {count} kanalen in M3U gezet.")
+        self.log(self._('export_live_done', count=count))
 
     def start_export_movies(self):
         self._sync_vars_to_sets()
-        if not self.selected_movies: return messagebox.showwarning("Let op", "Geen Film groepen geselecteerd.")
-        path = filedialog.askdirectory(title="Waar moeten de Films opgeslagen worden?")
+        if not self.selected_movies: return messagebox.showwarning("Let op", self._('no_movie_groups_warning'))
+        path = filedialog.askdirectory(title=self._('ask_movie_dir_title'))
         if path: self.run_in_thread(lambda: self.export_movies_logic(path))
 
     def export_movies_logic(self, base_dir):
-        self.log("Films worden verwerkt...")
+        self.log(self._('export_movies_status'))
         count = 0
         for s in self.streams_movies:
             if s['group'] in self.selected_movies:
@@ -382,12 +514,12 @@ class StrmManagerApp:
                         f.write(s['url'])
                     count += 1
                 except OSError: pass
-        self.log(f"Klaar! {count} films verwerkt.")
+        self.log(self._('export_movies_done', count=count))
 
     def start_export_series(self):
         self._sync_vars_to_sets()
-        if not self.selected_series: return messagebox.showwarning("Let op", "Geen Serie groepen geselecteerd.")
-        path = filedialog.askdirectory(title="Waar moeten de Series opgeslagen worden?")
+        if not self.selected_series: return messagebox.showwarning("Let op", self._('no_series_groups_warning'))
+        path = filedialog.askdirectory(title=self._('ask_series_dir_title'))
         if path: self.run_in_thread(lambda: self.export_series_logic(path))
 
     def _tmdb_call(self, endpoint, params={}):
@@ -409,15 +541,15 @@ class StrmManagerApp:
         username = provider['username']
         password = self._decrypt_pass(provider.get('password', ''))
         base_api_url = f"{server}/player_api.php"
-        auth = {"username": username, "password": password}
+        auth = {"username": username, "password": password, "server": server}
 
         series_to_process = [s for s in self.streams_series if s['group'] in self.selected_series]
         total_series = len(series_to_process)
-        self.log(f"Starten met verwerken van {total_series} series... (Dit kan even duren)")
+        self.log(self._('export_series_status', total=total_series))
 
         count_episodes = 0
         for index, s in enumerate(series_to_process):
-            self.log(f"Serie {index + 1}/{total_series}: {s['name']}")
+            self.log(self._('export_series_progress', current=index + 1, total=total_series, name=s['name']))
             try:
                 ep_count = self._process_single_series(s, base_dir, base_api_url, auth)
                 count_episodes += ep_count
@@ -426,7 +558,7 @@ class StrmManagerApp:
             except Exception as e: # Vang onverwachte fouten per serie
                 self.log(f"Fout bij verwerken van {s['name']}: {e}")
 
-        self.log(f"Klaar! {count_episodes} afleveringen verwerkt van {total_series} series.")
+        self.log(self._('export_series_done', episodes=count_episodes, series=total_series))
 
     def _process_single_series(self, series_data, base_dir, api_url, auth):
         """Haalt info en afleveringen voor één serie op en schrijft de bestanden."""
