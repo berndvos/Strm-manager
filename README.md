@@ -37,7 +37,7 @@ The following Python packages are required:
 2.  **Install the required libraries.** Open a terminal or command prompt and run the following command:
 
     ```bash
-    pip install requests pywin32
+    py -m pip install requests pywin32
     ```
 
 3.  **Place the script.** Make sure `strm_manager.py` is in its own folder. The `config.json` file will be created automatically in the same folder.
@@ -75,6 +75,23 @@ Before you can load lists, you need to configure the application.
 6.  **Choose a Location**: For each export action, a window will appear asking you to choose the save location.
 
 You're all set! The files are now in your chosen folders, ready to be added to your media center library.
+
+## Building the Executable (.exe)
+
+You can package this application into a single `.exe` file for easy distribution on Windows, so users don't need to install Python or any libraries.
+
+1.  **Install PyInstaller**:
+    ```bash
+    py -m pip install pyinstaller
+    ```
+
+2.  **Build the executable**:
+    Run the following command in the project directory. It includes a hidden import for the encryption library to ensure it's bundled correctly.
+    ```bash
+    py -m PyInstaller --onefile --windowed --hidden-import=win32crypt --name="STRM Manager" strm_manager.py
+    ```
+
+3.  **Find the file**: The final `STRM Manager.exe` will be located in the `dist` folder.
 
 ---
 
@@ -121,7 +138,7 @@ De volgende Python-pakketten zijn vereist:
 2.  **Installeer de vereiste bibliotheken.** Open een terminal of command prompt en voer het volgende commando uit:
 
     ```bash
-    pip install requests pywin32
+    py -m pip install requests pywin32
     ```
 
 3.  **Plaats het script.** Zorg ervoor dat `strm_manager.py` in een eigen map staat. Het `config.json`-bestand wordt automatisch in dezelfde map aangemaakt.
@@ -159,6 +176,25 @@ Voordat je lijsten kunt laden, moet je de applicatie configureren.
 6.  **Kies een Locatie**: Voor elke exportactie zal een venster verschijnen waarin je de opslaglocatie kunt kiezen.
 
 Je bent nu klaar! De bestanden staan in de door jou gekozen mappen, klaar om te worden toegevoegd aan je mediacenter-bibliotheek.
+
+---
+
+### Een .exe-bestand Bouwen
+
+Je kunt deze applicatie inpakken tot een enkel `.exe`-bestand voor eenvoudige distributie op Windows, zodat gebruikers geen Python of bibliotheken hoeven te installeren.
+
+1.  **Installeer PyInstaller**:
+    ```bash
+    py -m pip install pyinstaller
+    ```
+
+2.  **Bouw het bestand**:
+    Voer het volgende commando uit in de projectmap. Dit commando bevat een 'hidden import' voor de encryptie-bibliotheek om te zorgen dat deze correct wordt meegenomen.
+    ```bash
+    py -m PyInstaller --onefile --windowed --hidden-import=win32crypt --name="STRM Manager" strm_manager.py
+    ```
+
+3.  **Vind het bestand**: Het uiteindelijke `STRM Manager.exe` bestand is te vinden in de `dist`-map.
 
 ---
 
